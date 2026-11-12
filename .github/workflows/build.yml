@@ -1,0 +1,54 @@
+name: Build PANEL RUN BOT APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '*.zip'
+      - '.github/workflows/build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Extract Project ZIP
+        run: |
+          mkdir extracted
+          ZIP=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+          if [ -z "$ZIP" ]; then
+            echo "ZIP project tidak ditemukan!"
+            exit 1
+          fi
+          unzip -q "$ZIP" -d extracted
+          find extracted -maxdepth 4 -type f | head -100
+
+      - name: Locate Gradle Project
+        run: |
+          GRADLE=$(find extracted -name settings.gradle -o -name settings.gradle.kts | head -n 1)
+          if [ -z "$GRADLE" ]; then
+            echo "Project Gradle tidak ditemukan dalam ZIP!"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$GRADLE")" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        run: |
+          cd "$PROJECT_DIR"
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PANEL-RUN-BOT-APK
+          path: '**/build/outputs/apk/debug/*.apk'
